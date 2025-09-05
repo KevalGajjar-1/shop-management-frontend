@@ -256,6 +256,7 @@ const ShopsPage: React.FC = () => {
             <AlertDialogTitle>Delete Shop</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{ deleteConfirm?.name }"? This action cannot be undone.
+              <p className="text-red-600">On deleting shop your all product will be deleted too.</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           { isDeleting && (
@@ -269,7 +270,7 @@ const ShopsPage: React.FC = () => {
             <AlertDialogAction
               onClick={ () => deleteConfirm && handleDeleteShop(deleteConfirm._id) }
               disabled={ isDeleting }
-              className="bg-destructive text-destructive-foreground"
+              className="bg-destructive text-white hover:bg-red-400"
             >
               { isDeleting ? (
                 <>
