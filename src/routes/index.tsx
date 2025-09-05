@@ -33,6 +33,11 @@ const welcomeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/welcome',
   component: Welcome,
+  beforeLoad: () => {
+    if (isAuthenticated()) {
+      throw redirect({ to: '/dashboard' });
+    }
+  },
 });
 
 // Auth routes - redirect to dashboard if already authenticated
