@@ -124,30 +124,25 @@ const ProductsPage: React.FC = () => {
           ) }
         </div>
 
-        { shopId ? (
-          <Dialog open={ isCreateModalOpen } onOpenChange={ setIsCreateModalOpen }>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Product
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add New Product</DialogTitle>
-              </DialogHeader>
-              <ProductForm
-                shopId={ shopId || '' }
-                onSuccess={ () => setIsCreateModalOpen(false) }
-                onCancel={ () => setIsCreateModalOpen(false) }
-              />
-            </DialogContent>
-          </Dialog>
-        ) :
-          <div className="text-sm text-muted-foreground">
-            Select a shop to add products.
-          </div>
-        }
+        <Dialog open={ isCreateModalOpen } onOpenChange={ setIsCreateModalOpen }>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add New Product</DialogTitle>
+            </DialogHeader>
+            <ProductForm
+              shopId={ shopId || '' }
+              onSuccess={ () => setIsCreateModalOpen(false) }
+              onCancel={ () => setIsCreateModalOpen(false) }
+              
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Shop Info Card (only when viewing specific shop) */ }
@@ -207,6 +202,7 @@ const ProductsPage: React.FC = () => {
                 <div className="flex-1">
                   <CardTitle className="text-lg">{ product.name }</CardTitle>
                   <div className="flex items-center gap-2 mt-1">
+                    Category:
                     <Badge variant="outline">
                       { product.category }
                     </Badge>
@@ -255,7 +251,7 @@ const ProductsPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1">
                   <IndianRupee className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-semibold">₹{ product.price.toLocaleString() }</span>
+                  <span className="font-semibold">{ product.price.toLocaleString() }</span>
                 </div>
 
                 <div className="flex items-center space-x-1">
@@ -320,7 +316,6 @@ const ProductsPage: React.FC = () => {
       </Dialog>
 
       {/* Delete Confirmation */ }
-      {/* ✅ Safe null check with optional chaining */ }
       <AlertDialog open={ !!deleteConfirm } onOpenChange={ () => setDeleteConfirm(null) }>
         <AlertDialogContent>
           <AlertDialogHeader>
