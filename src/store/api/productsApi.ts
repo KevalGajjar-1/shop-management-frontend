@@ -33,14 +33,14 @@ export const productsApi = baseApi.injectEndpoints({
         url: `/products/shop/${shopId}`,
         params,
       }),
-      providesTags: (result, error, { shopId }) => [
+      providesTags: (_result, _error, { shopId }) => [
         { type: 'Product', id: `shop-${shopId}` },
       ],
     }),
 
     getProduct: builder.query<{ success: boolean; data: Product }, string>({
       query: (id) => `/products/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Product', id }],
+      providesTags: (_result, _error, id) => [{ type: 'Product', id }],
     }),
 
     createProduct: builder.mutation<{ success: boolean; data: Product }, CreateProductRequest>({
@@ -61,7 +61,7 @@ export const productsApi = baseApi.injectEndpoints({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Product', id },
         'Product',
         'ShopsWithProducts',
