@@ -32,7 +32,7 @@ export const store = configureStore({
         ignoredActions: [ 'persist/PERSIST', 'persist/REHYDRATE' ]
       }
     }).concat(baseApi.middleware),
-  devTools: process.env.NODE_ENV !== 'production'
+  devTools: import.meta.env.MODE !== 'production'
 });
 
 // Enable listener behavior for the store
