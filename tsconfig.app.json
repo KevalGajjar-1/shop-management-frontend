@@ -30,9 +30,11 @@
       "@/*": [
         "./src/*"
       ]
-    }
+    },
+    "noImplicitAny": true
   },
   "include": [
     "src"
-  ]
+  ],
+
 }

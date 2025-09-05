@@ -1,51 +1,59 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useLoginMutation } from '@/store/api/shopManagementApi';
 import { login } from '@/store/slices/authSlice';
-import { Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
+import { Link } from '@tanstack/react-router';
+const loginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
 
-interface LoginForm {
-  email: string;
-  password: string;
-}
+type LoginFormData = z.infer<typeof loginSchema>;
 
 const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [loginMutation, { isLoading }] = useLoginMutation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
-  const onSubmit = async (data: LoginForm) => {
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      // Mock successful login
-      const mockUser = {
-        id: '1',
-        name: 'John Doe',
-        email: data.email,
-      };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = async (data: LoginFormData) => {
+    try {
+      const result = await loginMutation(data).unwrap();
       
+      // Store in Redux
       dispatch(login({
-        user: mockUser,
-        token: 'mock-jwt-token-123'
+        user: result.data.user,
+        token: result.data.token
       }));
-      
-      setIsLoading(false);
+
+      toast.success('Login successful!');
       navigate({ to: '/dashboard' });
-    }, 1000);
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || 'Login failed');
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/20">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-background to-muted/20 p-4">
+      <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle className="text-2xl text-center">Welcome Back</CardTitle>
           <CardDescription className="text-center">
@@ -55,16 +63,12 @@ const LoginPage: React.FC = () => {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
               <Input
+                id="email"
                 type="email"
-                placeholder="Email"
-                {...register('email', { 
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                    message: 'Invalid email address'
-                  }
-                })}
+                placeholder="Enter your email"
+                {...register('email')}
                 className={errors.email ? 'border-destructive' : ''}
               />
               {errors.email && (
@@ -73,11 +77,13 @@ const LoginPage: React.FC = () => {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Input
+                  id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
-                  {...register('password', { required: 'Password is required' })}
+                  placeholder="Enter your password"
+                  {...register('password')}
                   className={errors.password ? 'border-destructive pr-10' : 'pr-10'}
                 />
                 <Button
@@ -95,13 +101,24 @@ const LoginPage: React.FC = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full dark:bg-black dark:text-white" disabled={isLoading}>
-              {isLoading ? 'Signing In...' : 'Sign In'}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
+              )}
             </Button>
 
-            <p className="text-sm text-muted-foreground text-center">
-              Use any email and password to login (demo)
-            </p>
+            <div className="text-center">
+              Don't have an account? <Link to="/register">Register</Link>
+            </div>
           </form>
         </CardContent>
       </Card>

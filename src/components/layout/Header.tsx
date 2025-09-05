@@ -5,7 +5,6 @@ import { RootState } from '@/store';
 import { logout } from '@/store/slices/authSlice';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu,
@@ -35,10 +34,7 @@ const Header: React.FC = () => {
         {/* Left side - App branding */}
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-bold">Shop Management System</h1>
-            <Badge variant="secondary" className="text-xs">
-              Beta
-            </Badge>
+            <h1 className="text-xl font-bold">Welcome back, {user?.name}!</h1>
           </div>
         </div>
 

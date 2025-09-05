@@ -1,10 +1,12 @@
 import React from 'react';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Store, Package, BarChart3, ArrowRight } from 'lucide-react';
+import { Store, Package, BarChart3, ArrowRight, UserPlus } from 'lucide-react';
 
 const Welcome: React.FC = () => {
+  const navigate = useNavigate();
+
   const features = [
     {
       icon: <Store className="h-12 w-12 text-primary" />,
@@ -25,9 +27,9 @@ const Welcome: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-background to-muted/20">
-      {/* Hero Section - Full Width */}
+      {/* Hero Section */}
       <section className="w-full px-4 py-24 text-center">
-        <div className="mx-auto max-w-6xl space-y-8"> {/* Increased max-width */}
+        <div className="mx-auto max-w-6xl space-y-8">
           <div className="flex justify-center">
             <div className="rounded-full bg-primary/10 p-6">
               <Store className="h-16 w-16 text-primary" />
@@ -45,8 +47,14 @@ const Welcome: React.FC = () => {
           
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Button asChild size="lg" className="text-base">
+              <Button onClick={() => navigate({to:'/register'})}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Get Started Free
+              </Button>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="text-base">
               <Link to="/login">
-                Get Started
+                Sign In
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -54,9 +62,9 @@ const Welcome: React.FC = () => {
         </div>
       </section>
 
-      {/* Features Section - Full Width */}
+      {/* Features Section */}
       <section className="w-full px-4 py-24">
-        <div className="mx-auto max-w-7xl"> {/* Increased max-width */}
+        <div className="mx-auto max-w-7xl">
           <div className="text-center space-y-4 mb-16">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Everything you need to manage your business
