@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { useLoginMutation } from '@/store/api/shopManagementApi';
+import { useLoginMutation } from '@/store/api/authApi';
 import { login } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
 import { Link } from '@tanstack/react-router';

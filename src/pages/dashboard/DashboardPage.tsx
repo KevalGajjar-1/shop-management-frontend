@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Store, Package, TrendingUp, Users, Loader2 } from 'lucide-react';
-import { useGetShopsWithProductsQuery } from '@/store/api/shopManagementApi';
+import { useGetShopsWithProductsQuery } from '@/store/api/shopsApi';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const DashboardPage: React.FC = () => {

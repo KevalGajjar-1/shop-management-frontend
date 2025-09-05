@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Loader2, User, Mail, Lock } from 'lucide-react';
-import { useRegisterMutation } from '@/store/api/shopManagementApi';
+import { useRegisterMutation } from '@/store/api/authApi';
 import { login } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
 

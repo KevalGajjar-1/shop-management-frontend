@@ -1,19 +1,19 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
-import { shopManagementApi } from './api/shopManagementApi';
+import { baseApi } from './api/baseApi';
 import authReducer from './slices/authSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    [shopManagementApi.reducerPath]: shopManagementApi.reducer,
+    [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE']
       }
-    }).concat(shopManagementApi.middleware),
+    }).concat(baseApi.middleware),
   devTools: process.env.NODE_ENV !== 'production'
 });
 

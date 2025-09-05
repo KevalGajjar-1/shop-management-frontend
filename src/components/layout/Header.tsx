@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, User, Bell } from 'lucide-react';
+import { LogOut, Settings, User } from 'lucide-react';
 
 const Header: React.FC = () => {
   const dispatch = useDispatch();
@@ -40,12 +40,6 @@ const Header: React.FC = () => {
 
         {/* Right side - User menu and actions */}
         <div className="flex items-center space-x-4">
-          {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-4 w-4" />
-            <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-          </Button>
-
           <Separator orientation="vertical" className="h-6" />
 
           {/* User dropdown menu */}

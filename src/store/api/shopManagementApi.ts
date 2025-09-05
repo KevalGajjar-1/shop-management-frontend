@@ -1,111 +1,28 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import customBaseQuery from './customBaseQuery';
 import { logout } from '../slices/authSlice';
-
-// Types
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-}
-
-export interface Shop {
-  _id: string;
-  name: string;
-  description?: string;
-  address: string;
-  phone: string;
-  owner: string;
-  createdAt: string;
-  updatedAt: string;
-  productCount?: number;
-  totalValue?: number;
-  products?: Product[];
-}
-
-export interface Product {
-  _id: string;
-  name: string;
-  description?: string;
-  price: number;
-  category: string;
-  stock: number;
-  shop: {
-    _id: string;
-    name: string;
-    address: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  name: string;
-  email: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  message: string;
-  data: {
-    user: User;
-    token: string;
-  };
-}
-
-export interface CreateShopRequest {
-  name: string;
-  description?: string;
-  address: string;
-  phone: string;
-}
-
-export interface UpdateShopRequest {
-  name?: string;
-  description?: string;
-  address?: string;
-  phone?: string;
-}
-
-export interface CreateProductRequest {
-  name: string;
-  description?: string;
-  price: number;
-  category: string;
-  stock: number;
-  shop: string;
-}
-
-export interface UpdateProductRequest {
-  name?: string;
-  description?: string;
-  price?: number;
-  category?: string;
-  stock?: number;
-}
+import {
+  CreateProductRequest, LoginRequest, AuthResponse,
+  Product, RegisterRequest, UpdateProductRequest,CreateShopRequest, Shop,
+  UpdateShopRequest
+} from '../../interfaces';
 
 // Enhanced baseQuery with error handling
 const baseQueryWithReauth = async (args: any, api: any, extraOptions: any) => {
   const result = await customBaseQuery(args, api, extraOptions);
-  
+
   // Handle 401 errors (token expired)
   if (result.error?.status === 401) {
     api.dispatch(logout());
   }
-  
+
   return result;
 };
 
 export const shopManagementApi = createApi({
   reducerPath: 'shopManagementApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Auth', 'Shop', 'Product', 'ShopsWithProducts'],
+  tagTypes: [ 'Auth', 'Shop', 'Product', 'ShopsWithProducts' ],
   endpoints: (builder) => ({
     // Auth endpoints
     login: builder.mutation<AuthResponse, LoginRequest>({
@@ -114,7 +31,7 @@ export const shopManagementApi = createApi({
         method: 'POST',
         body: credentials,
       }),
-      invalidatesTags: ['Auth'],
+      invalidatesTags: [ 'Auth' ],
     }),
 
     register: builder.mutation<AuthResponse, RegisterRequest>({
@@ -123,23 +40,23 @@ export const shopManagementApi = createApi({
         method: 'POST',
         body: userData,
       }),
-      invalidatesTags: ['Auth'],
+      invalidatesTags: [ 'Auth' ],
     }),
 
     // Shop endpoints
     getShops: builder.query<{ success: boolean; data: Shop[] }, void>({
       query: () => '/shops',
-      providesTags: ['Shop'],
+      providesTags: [ 'Shop' ],
     }),
 
     getShopsWithProducts: builder.query<{ success: boolean; data: Shop[] }, void>({
       query: () => '/shops/with-products',
-      providesTags: ['ShopsWithProducts'],
+      providesTags: [ 'ShopsWithProducts' ],
     }),
 
     getShop: builder.query<{ success: boolean; data: Shop }, string>({
       query: (id) => `/shops/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Shop', id }],
+      providesTags: (_result, _error, id) => [ { type: 'Shop', id } ],
     }),
 
     createShop: builder.mutation<{ success: boolean; data: Shop }, CreateShopRequest>({
@@ -148,7 +65,7 @@ export const shopManagementApi = createApi({
         method: 'POST',
         body: shopData,
       }),
-      invalidatesTags: ['Shop', 'ShopsWithProducts'],
+      invalidatesTags: [ 'Shop', 'ShopsWithProducts' ],
     }),
 
     updateShop: builder.mutation<
@@ -160,7 +77,7 @@ export const shopManagementApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Shop', id },
         'Shop',
         'ShopsWithProducts',
@@ -172,7 +89,7 @@ export const shopManagementApi = createApi({
         url: `/shops/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Shop', 'ShopsWithProducts'],
+      invalidatesTags: [ 'Shop', 'ShopsWithProducts' ],
     }),
 
     // Product endpoints
@@ -189,7 +106,7 @@ export const shopManagementApi = createApi({
         url: '/products',
         params,
       }),
-      providesTags: ['Product'],
+      providesTags: [ 'Product' ],
     }),
 
     getProductsByShop: builder.query<
@@ -206,14 +123,14 @@ export const shopManagementApi = createApi({
         url: `/products/shop/${shopId}`,
         params,
       }),
-      providesTags: (result, error, { shopId }) => [
+      providesTags: (_result, _error, { shopId }) => [
         { type: 'Product', id: `shop-${shopId}` },
       ],
     }),
 
     getProduct: builder.query<{ success: boolean; data: Product }, string>({
       query: (id) => `/products/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Product', id }],
+      providesTags: (_result, _error, id) => [ { type: 'Product', id } ],
     }),
 
     createProduct: builder.mutation<{ success: boolean; data: Product }, CreateProductRequest>({
@@ -222,7 +139,7 @@ export const shopManagementApi = createApi({
         method: 'POST',
         body: productData,
       }),
-      invalidatesTags: ['Product', 'ShopsWithProducts'],
+      invalidatesTags: [ 'Product', 'ShopsWithProducts' ],
     }),
 
     updateProduct: builder.mutation<
@@ -234,7 +151,7 @@ export const shopManagementApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Product', id },
         'Product',
         'ShopsWithProducts',
@@ -246,7 +163,7 @@ export const shopManagementApi = createApi({
         url: `/products/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Product', 'ShopsWithProducts'],
+      invalidatesTags: [ 'Product', 'ShopsWithProducts' ],
     }),
   }),
 });

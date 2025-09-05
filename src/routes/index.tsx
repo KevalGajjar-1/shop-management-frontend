@@ -7,6 +7,7 @@ import RegisterPage from '@/pages/auth/RegisterPage';
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import ShopsPage from '@/pages/shops/ShopsPage';
 import ProductsPage from '@/pages/products/ProductsPage';
+import z from 'zod';
 
 // Helper function to check authentication
 const isAuthenticated = () => {
@@ -83,6 +84,9 @@ const shopsRoute = createRoute({
 const productsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/products',
+  validateSearch: z.object({
+    shopId: z.string().optional(),
+  }),
   beforeLoad: () => {
     if (!isAuthenticated()) {
       throw redirect({ to: '/login' });

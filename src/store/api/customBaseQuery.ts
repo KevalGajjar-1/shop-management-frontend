@@ -15,8 +15,8 @@ interface CustomArgs {
   headers?: Record<string, string>;
 }
 
-const API_BASE_URL = 'http://localhost:5000/api';
-const DEFAULT_TIMEOUT = 10000; // 10 seconds
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const DEFAULT_TIMEOUT = 60000; // 10 seconds
 
 const customBaseQuery: BaseQueryFn<
   string | CustomArgs,
