@@ -61,6 +61,61 @@ src/
 └── styles/              # Global styles and Tailwind config
 ```
 
+# Screenshots
+## Login 
+- Route: /login
+![Login](/public/image/login.png)
+
+## Register 
+- Route: /register
+![Register](/public/image/register.png)
+
+## Dashboard 
+- Route: /welcome
+![Dashboard](/public/image/dashboard.png)
+
+## Shop 
+- Route: /shops
+![Shop](/public/image/shops.png)
+
+## Shop Search
+- Route: /shops
+![Shop Search](/public/image/search-shop.png)
+
+## Shop View Products 
+- Route: /products?shopId={shopId}
+![Shop Wise Product](/public/image/shop-view-product.png)
+
+## All Product 
+- Route: /products
+![All Product](/public/image/all-products.png)
+
+## Add Shop 
+- Route: /shops
+![Add Shop](/public/image/add-shop.png)
+
+## Add Product 
+- Route: /products
+![Add Product](/public/image/add-new-pr-1.png)
+![Add Product 2](/public/image/add-new-pr2.png)
+
+## Edit Shop 
+- Route: /shops
+![Edit Shop](/public/image/edit-shop.png)
+
+## Edit Product 
+- Route: /shops
+![Edit Product](/public/image/edit-product.png)
+
+## Delete Shop 
+- Route: /shops
+![Delete Shop](/public/image/delete-shop.png)
+
+## Delete Product 
+- Route: /products
+![Delete Product](/public/image/delete-pr.png)
+
+
 ## ✨ Key Features
 
 ### 🔐 Authentication & Security
