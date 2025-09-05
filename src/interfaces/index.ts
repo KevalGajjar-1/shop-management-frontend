@@ -86,3 +86,22 @@ export interface UpdateProductRequest {
   category?: string;
   stock?: number;
 }
+
+export interface ShopsResponse {
+  success: boolean;
+  data: Shop[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
+
+export interface ShopsQueryParams {
+  search?: string;
+  page?: number;
+  limit?: number;
+}

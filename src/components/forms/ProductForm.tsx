@@ -7,8 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
-import { useGetShopsQuery } from '@/store/api/shopsApi';
-import { useDebounce } from 'use-debounce';
 import { useCreateProductMutation, useUpdateProductMutation } from '@/store/api/productsApi';
 import { toast } from 'sonner';
 import ShopSelector from '@/components/ui/shop-selector';
@@ -29,7 +27,7 @@ interface ProductFormProps {
   shopId?: string;
   onSuccess: () => void;
   onCancel: () => void;
-  onLoadingChange?: (loading: boolean) => void; // ✅ Added this prop
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 const ProductForm: React.FC<ProductFormProps> = ({
@@ -37,15 +35,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
   shopId: propShopId,
   onSuccess,
   onCancel,
-  onLoadingChange // ✅ Added this prop
+  onLoadingChange
 }) => {
   const [ shopId, setShopId ] = useState<string | undefined>(propShopId);
-  const [ searchTerm, setSearchTerm ] = useState('');
-  const [ debouncedSearch ] = useDebounce(searchTerm, 300);
-  const [ isLoading, setIsLoading ] = useState(false); // ✅ Local loading state
-
-  const { data: shopsData, isLoading: shopsLoading } = useGetShopsQuery({ search: debouncedSearch });
-  const shops = shopsData?.data ?? [];
+  const [ isLoading, setIsLoading ] = useState(false);
 
   useEffect(() => {
     if (propShopId) {
@@ -82,7 +75,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
   }, [ shopId, reset, watch ]);
 
   const onSubmit = async (data: ProductFormData) => {
-    setIsLoading(true); // ✅ Set loading to true
+    setIsLoading(true);
 
     try {
       const payload = {
@@ -109,31 +102,34 @@ const ProductForm: React.FC<ProductFormProps> = ({
     } catch (error: any) {
       toast.error(error?.data?.message ?? 'Operation failed');
     } finally {
-      setIsLoading(false); // ✅ Set loading to false
+      setIsLoading(false);
     }
   };
 
-  // Handle cancel with loading check
   const handleCancel = () => {
     if (!isLoading) {
       onCancel();
     }
   };
 
+  // ✅ Show ShopSelector if no shop is selected
   if (!shopId) {
     return (
       <div className="space-y-4">
+        <div className="text-center mb-4">
+          <h3 className="text-lg font-medium">Select a Shop</h3>
+          <p className="text-sm text-muted-foreground">Choose which shop this product belongs to</p>
+        </div>
+
         <ShopSelector
-          shops={ shops }
-          loading={ shopsLoading }
           onSelect={ setShopId }
-          onSearch={ setSearchTerm }
           onCancel={ handleCancel }
         />
       </div>
     );
   }
 
+  // ✅ Show Product Form once shop is selected
   return (
     <form onSubmit={ handleSubmit(onSubmit) } className="space-y-4">
       {/* Loading indicator */ }
@@ -154,7 +150,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           placeholder="Enter product name"
           { ...register('name') }
           className={ errors.name ? 'border-destructive' : '' }
-          disabled={ isLoading } // ✅ Disable during loading
+          disabled={ isLoading }
         />
         { errors.name && <p className="text-sm text-destructive">{ errors.name.message }</p> }
       </div>
@@ -166,7 +162,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           placeholder="Enter product description (optional)"
           { ...register('description') }
           className={ errors.description ? 'border-destructive' : '' }
-          disabled={ isLoading } // ✅ Disable during loading
+          disabled={ isLoading }
         />
         { errors.description && <p className="text-sm text-destructive">{ errors.description.message }</p> }
       </div>
@@ -182,7 +178,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             placeholder="0.00"
             { ...register('price') }
             className={ errors.price ? 'border-destructive' : '' }
-            disabled={ isLoading } // ✅ Disable during loading
+            disabled={ isLoading }
           />
           { errors.price && <p className="text-sm text-destructive">{ errors.price.message }</p> }
         </div>
@@ -196,7 +192,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             placeholder="0"
             { ...register('stock') }
             className={ errors.stock ? 'border-destructive' : '' }
-            disabled={ isLoading } // ✅ Disable during loading
+            disabled={ isLoading }
           />
           { errors.stock && <p className="text-sm text-destructive">{ errors.stock.message }</p> }
         </div>
@@ -214,28 +210,39 @@ const ProductForm: React.FC<ProductFormProps> = ({
         { errors.category && <p className="text-sm text-destructive">{ errors.category.message }</p> }
       </div>
 
-      <div className="flex justify-end space-x-2 pt-4">
+      <div className="flex justify-between items-center pt-4">
         <Button
           type="button"
           variant="outline"
-          onClick={ handleCancel }
+          onClick={ () => setShopId(undefined) }
           disabled={ isLoading }
         >
-          Cancel
+          ← Change Shop
         </Button>
-        <Button
-          type="submit"
-          disabled={ isLoading }
-        >
-          { isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              { isEditing ? 'Updating...' : 'Creating...' }
-            </>
-          ) : (
-            isEditing ? 'Update Product' : 'Create Product'
-          ) }
-        </Button>
+
+        <div className="flex space-x-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={ handleCancel }
+            disabled={ isLoading }
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={ isLoading }
+          >
+            { isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                { isEditing ? 'Updating...' : 'Creating...' }
+              </>
+            ) : (
+              isEditing ? 'Update Product' : 'Create Product'
+            ) }
+          </Button>
+        </div>
       </div>
     </form>
   );

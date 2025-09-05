@@ -1,21 +1,25 @@
+import { CreateShopRequest, Shop, ShopsQueryParams, ShopsResponse, UpdateShopRequest } from '../../interfaces';
 import { baseApi } from './baseApi';
-import type { Shop, CreateShopRequest, UpdateShopRequest } from './types';
 
 export const shopsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getShops: builder.query<{ success: boolean; data: Shop[] }, { search?: string }>({
-      query: ({ search }) => ({ url: '/shops', params: { search } }),
-      providesTags: ['Shop'],
+    // ✅ Updated to support pagination parameters
+    getShops: builder.query<ShopsResponse, ShopsQueryParams>({
+      query: ({ search = '', page = 1, limit = 10 }) => ({
+        url: '/shops',
+        params: { search, page, limit },
+      }),
+      providesTags: [ 'Shop' ],
     }),
 
     getShopsWithProducts: builder.query<{ success: boolean; data: Shop[] }, void>({
       query: () => '/shops/with-products',
-      providesTags: ['ShopsWithProducts'],
+      providesTags: [ 'ShopsWithProducts' ],
     }),
 
     getShop: builder.query<{ success: boolean; data: Shop }, string>({
       query: (id) => `/shops/${id}`,
-      providesTags: (_result, _error, id) => [{ type: 'Shop', id }],
+      providesTags: (_result, _error, id) => [ { type: 'Shop', id } ],
     }),
 
     createShop: builder.mutation<{ success: boolean; data: Shop }, CreateShopRequest>({
@@ -24,7 +28,7 @@ export const shopsApi = baseApi.injectEndpoints({
         method: 'POST',
         body: shopData,
       }),
-      invalidatesTags: ['Shop', 'ShopsWithProducts'],
+      invalidatesTags: [ 'Shop', 'ShopsWithProducts' ],
     }),
 
     updateShop: builder.mutation<
@@ -48,14 +52,12 @@ export const shopsApi = baseApi.injectEndpoints({
         url: `/shops/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Shop', 'ShopsWithProducts'],
+      invalidatesTags: [ 'Shop', 'ShopsWithProducts' ],
     }),
-    
   }),
   overrideExisting: false,
 });
 
-// Export shop hooks
 export const {
   useGetShopsQuery,
   useGetShopsWithProductsQuery,

@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Home, Store, Package, LogOut } from "lucide-react"
 import { useSelector, useDispatch } from 'react-redux'
-import { Link, useLocation } from '@tanstack/react-router'
+import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -47,10 +47,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const dispatch = useDispatch()
   const location = useLocation()
   const { user } = useSelector((state: RootState) => state.auth)
+  const navigate = useNavigate()
 
   const handleLogout = () => {
-    dispatch(logout())
-    // Navigation will be handled by the auth guard redirecting to login
+    dispatch(logout());
+    navigate({ to: '/login' });
   }
 
   return (
