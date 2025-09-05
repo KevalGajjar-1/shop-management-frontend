@@ -1,8 +1,10 @@
 {
   "name": "shop-frontend",
   "compatibility_date": "2025-09-05",
+  "main": "./worker.js",
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   }
 }
