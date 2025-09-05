@@ -113,6 +113,7 @@ const ShopForm: React.FC<ShopFormProps> = ({ shop, onSuccess, onCancel, onLoadin
         <Label htmlFor="phone">Phone Number *</Label>
         <Input
           id="phone"
+          type='number'
           placeholder="Enter 10-digit phone number"
           {...register('phone')}
           className={errors.phone ? 'border-destructive' : ''}

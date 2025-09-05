@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useInView } from 'react-intersection-observer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Store, MapPin, Phone, Trash2, Edit, Eye, Loader2, MoreVertical } from 'lucide-react';
+import { Plus, Store, MapPin, Phone, Trash2, Edit, Eye, Loader2, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGetShopsQuery, useDeleteShopMutation } from '@/store/api/shopsApi';
 import { useDebounce } from 'use-debounce';
 import ShopForm from '@/components/forms/ShopForm';
@@ -18,18 +17,11 @@ import { Shop } from '@/interfaces';
 const ShopsPage: React.FC = () => {
   const navigate = useNavigate();
 
-  // ✅ Infinite scroll states
-  const [ page, setPage ] = useState(1);
-  const [ allShops, setAllShops ] = useState<Shop[]>([]);
-  const [ hasMoreShops, setHasMoreShops ] = useState(true);
+  // ✅ Simple pagination states
+  const [ currentPage, setCurrentPage ] = useState(1);
   const [ searchTerm, setSearchTerm ] = useState('');
   const [ debouncedSearch ] = useDebounce(searchTerm, 500);
-
-  // ✅ Intersection Observer hook
-  const { ref: loadMoreRef, inView } = useInView({
-    threshold: 0,
-    rootMargin: '100px', // Trigger 100px before reaching the bottom
-  });
+  const itemsPerPage = 20
 
   // Dialog states
   const [ isCreateModalOpen, setIsCreateModalOpen ] = useState(false);
@@ -39,50 +31,24 @@ const ShopsPage: React.FC = () => {
 
   const [ deleteShop, { isLoading: isDeleting } ] = useDeleteShopMutation();
 
-  // ✅ Fetch shops with pagination
-  const { data: shopsResponse, isLoading, isFetching, error } = useGetShopsQuery({
+  // ✅ Simple query - no complex state management
+  const {
+    data: shopsResponse,
+    isLoading,
+    isFetching,
+    error,
+    refetch
+  } = useGetShopsQuery({
     search: debouncedSearch,
-    page,
-    limit: 10,
+    page: currentPage,
+    limit: itemsPerPage,
   });
 
-  // ✅ Handle data loading and pagination
-  useEffect(() => {
-    if (shopsResponse?.success) {
-      const newShops = shopsResponse.data;
-      const pagination = shopsResponse.pagination;
-
-      if (page === 1) {
-        // Reset shops list for new search or initial load
-        setAllShops(newShops);
-      } else {
-        // Append new shops for infinite scroll
-        setAllShops(prevShops => [ ...prevShops, ...newShops ]);
-      }
-
-      setHasMoreShops(pagination.hasNextPage);
-    }
-  }, [ shopsResponse, page ]);
-
-  // ✅ Reset to page 1 when search changes
-  useEffect(() => {
-    setPage(1);
-    setAllShops([]);
-    setHasMoreShops(true);
-  }, [ debouncedSearch ]);
-
-  // ✅ Load more when scrolling reaches bottom
-  useEffect(() => {
-    if (inView && hasMoreShops && !isFetching && !isLoading) {
-      setPage(prevPage => prevPage + 1);
-    }
-  }, [ inView, hasMoreShops, isFetching, isLoading ]);
-
-  // ✅ Filter shops on frontend for immediate feedback
-  const filteredShops = allShops.filter(shop =>
-    shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    shop.address.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ✅ Direct data usage - no accumulation
+  const shops = shopsResponse?.data || [];
+  const pagination = shopsResponse?.pagination;
+  const totalPages = pagination?.totalPages || 1;
+  const totalItems = pagination?.totalItems || 0;
 
   const handleDeleteShop = async (shopId: string) => {
     try {
@@ -90,8 +56,8 @@ const ShopsPage: React.FC = () => {
       toast.success('Shop deleted successfully');
       setDeleteConfirm(null);
 
-      // ✅ Remove deleted shop from local state
-      setAllShops(prevShops => prevShops.filter(shop => shop._id !== shopId));
+      // ✅ Simple refetch - no state manipulation needed
+      refetch();
     } catch (err: any) {
       toast.error(err?.data?.message ?? 'Failed to delete shop');
     }
@@ -101,8 +67,52 @@ const ShopsPage: React.FC = () => {
     navigate({ to: '/products', search: { shopId } });
   };
 
-  // ✅ Loading state for initial load
-  if (isLoading && page === 1) {
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset to first page on search
+  }, []);
+
+  // ✅ Simple pagination handlers
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  };
+
+  const handlePageClick = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // ✅ Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const delta = 2; // Show 2 pages before and after current page
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+      range.push(i);
+    }
+
+    if (currentPage - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (currentPage + delta < totalPages - 1) {
+      rangeWithDots.push('...', totalPages);
+    } else {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots;
+  };
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -111,11 +121,11 @@ const ShopsPage: React.FC = () => {
     );
   }
 
-  if (error && page === 1) {
+  if (error) {
     return (
       <div className="text-center py-8">
         <p className="text-destructive">Failed to load shops</p>
-        <Button onClick={ () => window.location.reload() } className="mt-4">
+        <Button onClick={ () => refetch() } className="mt-4">
           Retry
         </Button>
       </div>
@@ -137,16 +147,13 @@ const ShopsPage: React.FC = () => {
           onOpenChange={ (open) => {
             if (!isFormLoading) {
               if (open) {
-                // ✅ Handle opening the dialog
                 setIsCreateModalOpen(true);
               } else {
-                // ✅ Handle closing the dialog
                 setIsCreateModalOpen(false);
                 setEditingShop(null);
               }
             }
           } }
-
         >
           <DialogTrigger asChild>
             <Button disabled={ isFormLoading || isDeleting }>
@@ -156,33 +163,30 @@ const ShopsPage: React.FC = () => {
           </DialogTrigger>
           <DialogContent
             onInteractOutside={ (e) => {
-              if (isFormLoading) {
-                e.preventDefault();
-              }
+              if (isFormLoading) e.preventDefault();
             } }
             onEscapeKeyDown={ (e) => {
-              if (isFormLoading) {
-                e.preventDefault();
-              }
+              if (isFormLoading) e.preventDefault();
             } }
           >
             <DialogHeader>
               <DialogTitle>{ editingShop ? 'Edit Shop' : 'Create New Shop' }</DialogTitle>
             </DialogHeader>
-            {/* { isFormLoading && (
+            { isFormLoading && (
               <div className="flex items-center space-x-2 mb-4 p-3 bg-blue-50 rounded-lg">
                 <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                 <span className="text-sm text-blue-700">
                   { editingShop ? 'Updating shop...' : 'Creating shop...' }
                 </span>
               </div>
-            ) } */}
+            ) }
             <ShopForm
               shop={ editingShop ?? undefined }
               onSuccess={ () => {
                 setIsCreateModalOpen(false);
                 setEditingShop(null);
                 setIsFormLoading(false);
+                refetch(); // ✅ Simple refetch
               } }
               onCancel={ () => {
                 if (!isFormLoading) {
@@ -196,20 +200,35 @@ const ShopsPage: React.FC = () => {
         </Dialog>
       </div>
 
-      {/* Search */ }
-      <div className="flex items-center space-x-2">
-        <Input
-          placeholder="Search shops..."
-          value={ searchTerm }
-          onChange={ (e) => setSearchTerm(e.target.value) }
-          className="max-w-sm"
-          disabled={ isFormLoading || isDeleting }
-        />
-        <Badge>{ filteredShops.length } { filteredShops.length === 1 ? 'shop' : 'shops' }</Badge>
+      {/* Search and Stats */ }
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Input
+            placeholder="Search shops..."
+            value={ searchTerm }
+            onChange={ handleSearchChange }
+            className="max-w-sm"
+            disabled={ isFormLoading || isDeleting }
+          />
+          { isFetching && (
+            <div className="flex items-center space-x-1">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-xs text-muted-foreground">Searching...</span>
+            </div>
+          ) }
+        </div>
+        <div className="flex items-center space-x-2">
+          <Badge variant="secondary">
+            { totalItems } total { totalItems === 1 ? 'shop' : 'shops' }
+          </Badge>
+          <Badge variant="outline">
+            Page { currentPage } of { totalPages }
+          </Badge>
+        </div>
       </div>
 
       {/* Shops Grid */ }
-      { filteredShops.length === 0 && !isLoading && !isFetching ? (
+      { shops.length === 0 ? (
         <Card className="text-center py-20">
           <CardContent>
             <Store className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -228,9 +247,9 @@ const ShopsPage: React.FC = () => {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            { filteredShops.map((shop, index) => (
-              <Card key={ index } className="hover:shadow-lg transition-shadow">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            { shops.map((shop) => (
+              <Card key={ shop._id } className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-2">
@@ -290,24 +309,48 @@ const ShopsPage: React.FC = () => {
             )) }
           </div>
 
-          {/* ✅ Infinite Scroll Loading Trigger */ }
-          { hasMoreShops && (
-            <div ref={ loadMoreRef } className="flex items-center justify-center py-8">
-              { isFetching ? (
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span className="text-sm text-muted-foreground">Loading more shops...</span>
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">Scroll for more</div>
-              ) }
-            </div>
-          ) }
+          {/* ✅ Pagination Controls */ }
+          { totalPages > 1 && (
+            <div className="flex items-center justify-center space-x-2 py-8">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={ handlePreviousPage }
+                disabled={ currentPage === 1 || isFetching }
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
 
-          {/* ✅ End of Data Message */ }
-          { !hasMoreShops && allShops.length > 0 && (
-            <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">🎉 You've seen all shops!</p>
+              <div className="flex items-center space-x-1">
+                { getPageNumbers().map((page, index) => (
+                  <React.Fragment key={ index }>
+                    { page === '...' ? (
+                      <span className="px-2 py-1 text-sm text-muted-foreground">...</span>
+                    ) : (
+                      <Button
+                        variant={ currentPage === page ? 'default' : 'outline' }
+                        size="sm"
+                        onClick={ () => handlePageClick(page as number) }
+                        disabled={ isFetching }
+                        className="min-w-[40px]"
+                      >
+                        { page }
+                      </Button>
+                    ) }
+                  </React.Fragment>
+                )) }
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={ handleNextPage }
+                disabled={ currentPage === totalPages || isFetching }
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
             </div>
           ) }
         </>
@@ -324,14 +367,10 @@ const ShopsPage: React.FC = () => {
       >
         <AlertDialogContent
           onFocusOutside={ (e) => {
-            if (isDeleting) {
-              e.preventDefault();
-            }
+            if (isDeleting) e.preventDefault();
           } }
           onEscapeKeyDown={ (e) => {
-            if (isDeleting) {
-              e.preventDefault();
-            }
+            if (isDeleting) e.preventDefault();
           } }
         >
           <AlertDialogHeader>

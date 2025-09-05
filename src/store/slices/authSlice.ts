@@ -1,3 +1,4 @@
+// store/slices/authSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface User {
@@ -31,15 +32,18 @@ const authSlice = createSlice({
       localStorage.setItem('token', action.payload.token);
       localStorage.setItem('user', JSON.stringify(action.payload.user));
     },
+    
+    // ✅ Simple logout - root reducer handles the reset
     logout: (state) => {
       state.isAuthenticated = false;
       state.user = null;
       state.token = null;
       
-      // Clear localStorage
+      // Clear localStorage (will be cleared again by root reducer)
       localStorage.removeItem('token');
       localStorage.removeItem('user');
     },
+    
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
@@ -49,5 +53,6 @@ const authSlice = createSlice({
   },
 });
 
+// ✅ Remove authListenerMiddleware export since we're not using it
 export const { login, logout, updateUser } = authSlice.actions;
 export default authSlice.reducer;

@@ -37,14 +37,17 @@ const ProductForm: React.FC<ProductFormProps> = ({
   onCancel,
   onLoadingChange
 }) => {
-  const [ shopId, setShopId ] = useState<string | undefined>(propShopId);
+  const isEditing = Boolean(product);
   const [ isLoading, setIsLoading ] = useState(false);
 
-  useEffect(() => {
-    if (propShopId) {
-      setShopId(propShopId);
+  // ✅ Smart shopId management
+  const [ shopId, setShopId ] = useState<string | undefined>(() => {
+    // Priority: 1. Product's shop (when editing), 2. Provided shopId, 3. undefined
+    if (isEditing && product?.shop) {
+      return typeof product.shop === 'string' ? product.shop : product.shop._id;
     }
-  }, [ propShopId ]);
+    return propShopId;
+  });
 
   // ✅ Notify parent about loading state changes
   useEffect(() => {
@@ -56,9 +59,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const [ createProduct ] = useCreateProductMutation();
   const [ updateProduct ] = useUpdateProductMutation();
 
-  const isEditing = Boolean(product);
-
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<ProductFormData>({
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       name: product?.name ?? '',
@@ -66,15 +67,34 @@ const ProductForm: React.FC<ProductFormProps> = ({
       price: product?.price?.toString() ?? '',
       category: product?.category ?? '',
       stock: product?.stock?.toString() ?? '0',
-      shopId: propShopId ?? '',
+      shopId: shopId ?? '',
     }
   });
 
+  // ✅ Update form when shopId changes
   useEffect(() => {
-    reset({ ...watch(), shopId: shopId ?? '' });
-  }, [ shopId, reset, watch ]);
+    if (shopId) {
+      setValue('shopId', shopId, {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true
+      });
+    }
+  }, [ shopId, setValue ]);
+
+  // ✅ Update shopId when propShopId changes (but only if not editing)
+  useEffect(() => {
+    if (!isEditing && propShopId && propShopId !== shopId) {
+      setShopId(propShopId);
+    }
+  }, [ propShopId, isEditing, shopId ]);
 
   const onSubmit = async (data: ProductFormData) => {
+    if (!shopId) {
+      toast.error('Please select a shop');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -84,12 +104,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
         price: Number(data.price),
         category: data.category,
         stock: Number(data.stock),
-        shop: data.shopId,
+        shop: shopId, // ✅ Use local shopId state
       };
 
       if (isEditing) {
-        const updatePayload = { ...payload };
-        await updateProduct({ id: product._id, data: updatePayload }).unwrap();
+        await updateProduct({ id: product._id, data: payload }).unwrap();
         toast.success('Product updated successfully!');
       } else {
         await createProduct(payload).unwrap();
@@ -98,7 +117,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
       onSuccess();
       reset();
-      if (!propShopId) setShopId(undefined);
+
+      // ✅ Only reset shopId if it wasn't provided as prop (for new products)
+      if (!propShopId && !isEditing) {
+        setShopId(undefined);
+      }
     } catch (error: any) {
       toast.error(error?.data?.message ?? 'Operation failed');
     } finally {
@@ -112,8 +135,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
     }
   };
 
-  // ✅ Show ShopSelector if no shop is selected
-  if (!shopId) {
+  const handleChangeShop = () => {
+    if (!isEditing && !isLoading) {
+      setShopId(undefined);
+    }
+  };
+
+  // ✅ Show ShopSelector if no shop is selected (only for new products)
+  if (!shopId && !isEditing) {
     return (
       <div className="space-y-4">
         <div className="text-center mb-4">
@@ -129,7 +158,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     );
   }
 
-  // ✅ Show Product Form once shop is selected
+  // ✅ Show Product Form once shop is selected or when editing
   return (
     <form onSubmit={ handleSubmit(onSubmit) } className="space-y-4">
       {/* Loading indicator */ }
@@ -141,6 +170,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
           </span>
         </div>
       ) }
+
+      {/* ✅ Hidden shopId field for form validation */ }
+      <input type="hidden" { ...register('shopId') } value={ shopId || '' } />
 
       {/* Product fields */ }
       <div className="space-y-2">
@@ -210,39 +242,53 @@ const ProductForm: React.FC<ProductFormProps> = ({
         { errors.category && <p className="text-sm text-destructive">{ errors.category.message }</p> }
       </div>
 
-      <div className="flex justify-between items-center pt-4">
+      {/* ✅ Show shop info and change option */ }
+      { shopId && (
+        <div className="p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm font-medium">Selected Shop</Label>
+              <p className="text-sm text-muted-foreground">
+                { isEditing ? 'Product shop (cannot be changed)' : 'Shop for this product' }
+              </p>
+            </div>
+            { !isEditing && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={ handleChangeShop }
+                disabled={ isLoading }
+              >
+                Change Shop
+              </Button>
+            ) }
+          </div>
+        </div>
+      ) }
+
+      <div className="flex justify-end space-x-2 pt-4">
         <Button
           type="button"
           variant="outline"
-          onClick={ () => setShopId(undefined) }
+          onClick={ handleCancel }
           disabled={ isLoading }
         >
-          ← Change Shop
+          Cancel
         </Button>
-
-        <div className="flex space-x-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={ handleCancel }
-            disabled={ isLoading }
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            disabled={ isLoading }
-          >
-            { isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                { isEditing ? 'Updating...' : 'Creating...' }
-              </>
-            ) : (
-              isEditing ? 'Update Product' : 'Create Product'
-            ) }
-          </Button>
-        </div>
+        <Button
+          type="submit"
+          disabled={ isLoading || !shopId }
+        >
+          { isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              { isEditing ? 'Updating...' : 'Creating...' }
+            </>
+          ) : (
+            isEditing ? 'Update Product' : 'Create Product'
+          ) }
+        </Button>
       </div>
     </form>
   );

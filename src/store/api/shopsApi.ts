@@ -3,12 +3,29 @@ import { baseApi } from './baseApi';
 
 export const shopsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // ✅ Updated to support pagination parameters
     getShops: builder.query<ShopsResponse, ShopsQueryParams>({
       query: ({ search = '', page = 1, limit = 10 }) => ({
         url: '/shops',
         params: { search, page, limit },
       }),
+      // ✅ Better cache management
+      keepUnusedDataFor: 300, // Keep cache for 5 minutes
+      serializeQueryArgs: ({ queryArgs }) => {
+        // ✅ Cache based on search term, ignore page for infinite scroll
+        return `shops-${queryArgs.search}`;
+      },
+      merge: (currentCache, newItems, { arg }) => {
+        if (arg.page === 1) {
+          return newItems;
+        }
+        return {
+          ...newItems,
+          data: [ ...(currentCache?.data || []), ...(newItems.data || []) ],
+        };
+      },
+      forceRefetch({ currentArg, previousArg }) {
+        return currentArg?.search !== previousArg?.search;
+      },
       providesTags: [ 'Shop' ],
     }),
 
@@ -52,7 +69,7 @@ export const shopsApi = baseApi.injectEndpoints({
         url: `/shops/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: [ 'Shop', 'ShopsWithProducts' ],
+      invalidatesTags: [ 'Shop', 'ShopsWithProducts', 'Product' ],
     }),
   }),
   overrideExisting: false,

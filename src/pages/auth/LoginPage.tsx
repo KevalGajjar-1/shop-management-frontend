@@ -21,8 +21,8 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 const LoginPage: React.FC = () => {
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [loginMutation, { isLoading }] = useLoginMutation();
+  const [ showPassword, setShowPassword ] = React.useState(false);
+  const [ loginMutation, { isLoading } ] = useLoginMutation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -37,7 +37,7 @@ const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       const result = await loginMutation(data).unwrap();
-      
+
       // Store in Redux
       dispatch(login({
         user: result.data.user,
@@ -61,19 +61,19 @@ const LoginPage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={ handleSubmit(onSubmit) } className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="Enter your email"
-                {...register('email')}
-                className={errors.email ? 'border-destructive' : ''}
+                { ...register('email') }
+                className={ errors.email ? 'border-destructive' : '' }
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
+              { errors.email && (
+                <p className="text-sm text-destructive">{ errors.email.message }</p>
+              ) }
             </div>
 
             <div className="space-y-2">
@@ -81,43 +81,49 @@ const LoginPage: React.FC = () => {
               <div className="relative">
                 <Input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={ showPassword ? 'text' : 'password' }
                   placeholder="Enter your password"
-                  {...register('password')}
-                  className={errors.password ? 'border-destructive pr-10' : 'pr-10'}
+                  { ...register('password') }
+                  className={ errors.password ? 'border-destructive pr-10' : 'pr-10' }
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   className="absolute right-0 top-0 h-full px-3"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={ () => setShowPassword(!showPassword) }
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  { showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" /> }
                 </Button>
               </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
+              { errors.password && (
+                <p className="text-sm text-destructive">{ errors.password.message }</p>
+              ) }
             </div>
 
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={ isLoading }
             >
-              {isLoading ? (
+              { isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...
                 </>
               ) : (
                 'Sign In'
-              )}
+              ) }
             </Button>
 
-            <div className="text-center">
-              Don't have an account? <Link to="/register">Register</Link>
+            <div className="text-center text-sm text-muted-foreground">
+              Don't have an account?{ ' ' }
+              <Link
+                to="/register"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Register
+              </Link>
             </div>
           </form>
         </CardContent>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,11 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, MoreVertical, Package, IndianRupee, Archive, Edit, Trash2, ArrowLeft, Loader2, Store } from 'lucide-react';
+import { Plus, MoreVertical, Package, IndianRupee, Archive, Edit, Trash2, ArrowLeft, Loader2, Store, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useGetProductsQuery, useGetProductsByShopQuery, useDeleteProductMutation } from '@/store/api/productsApi';
 import { useGetShopQuery } from '@/store/api/shopsApi';
 import { Product } from '@/interfaces';
 import ProductForm from '@/components/forms/ProductForm';
+import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
 
 const ProductsPage: React.FC = () => {
@@ -20,62 +21,140 @@ const ProductsPage: React.FC = () => {
   const search = useSearch({ from: '/products' });
   const shopId = search?.shopId;
 
+  // ✅ Pagination states
+  const [ currentPage, setCurrentPage ] = useState(1);
+  const [ searchTerm, setSearchTerm ] = useState('');
+  const [ categoryFilter, setCategoryFilter ] = useState('all');
+  const [ debouncedSearch ] = useDebounce(searchTerm, 500);
+  const itemsPerPage = 20;
+
+  // Dialog states
+  const [ isCreateModalOpen, setIsCreateModalOpen ] = useState<boolean>(false);
+  const [ editingProduct, setEditingProduct ] = useState<Product | null>(null);
+  const [ deleteConfirm, setDeleteConfirm ] = useState<Product | null>(null);
+  const [ isFormLoading, setIsFormLoading ] = useState<boolean>(false);
+
+  const [ deleteProduct, { isLoading: isDeleting } ] = useDeleteProductMutation();
+
+  // ✅ Call hooks unconditionally, use skip to control execution
   const {
     data: allProductsResponse,
     isLoading: allProductsLoading,
+    isFetching: allProductsFetching,
     error: allProductsError,
-  } = useGetProductsQuery(undefined, { skip: !!shopId });
+    refetch: refetchAllProducts
+  } = useGetProductsQuery({
+    page: currentPage,
+    limit: itemsPerPage,
+    search: debouncedSearch,
+    category: categoryFilter !== 'all' ? categoryFilter : 'all'
+  }, {
+    skip: !!shopId // Skip when shopId exists
+  });
 
   const {
     data: shopProductsResponse,
     isLoading: shopProductsLoading,
+    isFetching: shopProductsFetching,
     error: shopProductsError,
-  } = useGetProductsByShopQuery({ shopId: shopId! }, { skip: !shopId });
+    refetch: refetchShopProducts
+  } = useGetProductsByShopQuery({
+    shopId: shopId!,
+    page: currentPage,
+    limit: itemsPerPage,
+    search: debouncedSearch,
+    category: categoryFilter !== 'all' ? categoryFilter : 'all'
+  }, {
+    skip: !shopId // Skip when no shopId
+  });
 
   const {
     data: shopResponse,
     isLoading: shopLoading
   } = useGetShopQuery(shopId!, { skip: !shopId });
 
-  const [ deleteProduct, { isLoading: isDeleting } ] = useDeleteProductMutation();
-
-  // Dialog states
-  const [ isCreateModalOpen, setIsCreateModalOpen ] = useState<boolean>(false);
-  const [ editingProduct, setEditingProduct ] = useState<Product | null>(null);
-  const [ deleteConfirm, setDeleteConfirm ] = useState<Product | null>(null);
-  const [ searchTerm, setSearchTerm ] = useState<string>('');
-  const [ categoryFilter, setCategoryFilter ] = useState<string>('all');
-  const [ isFormLoading, setIsFormLoading ] = useState<boolean>(false);
-
+  // ✅ Select the correct response based on shopId
   const productsResponse = shopId ? shopProductsResponse : allProductsResponse;
-  const productsLoading = shopId ? shopProductsLoading : allProductsLoading;
-  const productsError = shopId ? shopProductsError : allProductsError;
+  const isLoading = shopId ? shopProductsLoading : allProductsLoading;
+  const isFetching = shopId ? shopProductsFetching : allProductsFetching;
+  const error = shopId ? shopProductsError : allProductsError;
+  const refetch = shopId ? refetchShopProducts : refetchAllProducts;
 
+  // ✅ Direct data usage - no accumulation
   const products = productsResponse?.data || [];
   const shop = shopResponse?.data;
+  const pagination = productsResponse?.pagination;
+  const totalPages = pagination?.totalPages || 1;
+  const totalItems = pagination?.totalItems || 0;
 
+  // ✅ Extract unique categories from current products
   const categories = [ ...new Set(products.map(product => product.category)) ];
-
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
 
   const handleDeleteProduct = async (productId: string) => {
     try {
       await deleteProduct(productId).unwrap();
       toast.success('Product deleted successfully!');
-      setDeleteConfirm(null); // Only close after successful delete
+      setDeleteConfirm(null);
+
+      // ✅ Simple refetch - no state manipulation needed
+      refetch();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to delete product');
-      // Don't close dialog on error, let user try again
     }
   };
 
-  if (productsLoading || shopLoading) {
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset to first page on search
+  }, []);
+
+  const handleCategoryChange = useCallback((value: string) => {
+    setCategoryFilter(value);
+    setCurrentPage(1); // Reset to first page on filter
+  }, []);
+
+  // ✅ Pagination handlers
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  };
+
+  const handlePageClick = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // ✅ Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const delta = 2;
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+      range.push(i);
+    }
+
+    if (currentPage - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (currentPage + delta < totalPages - 1) {
+      rangeWithDots.push('...', totalPages);
+    } else {
+      rangeWithDots.push(totalPages);
+    }
+
+    return rangeWithDots.filter((item, index, array) => array.indexOf(item) === index);
+  };
+
+  // ✅ Show loading state - considering shop loading only when we need shop data
+  if (isLoading || (shopId && shopLoading)) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -84,11 +163,11 @@ const ProductsPage: React.FC = () => {
     );
   }
 
-  if (productsError) {
+  if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-destructive">Failed to load products. Please try again.</p>
-        <Button onClick={ () => window.location.reload() } className="mt-4">
+        <p className="text-destructive">Failed to load products</p>
+        <Button onClick={ () => refetch() } className="mt-4">
           Retry
         </Button>
       </div>
@@ -130,10 +209,15 @@ const ProductsPage: React.FC = () => {
 
         {/* Add Product Dialog */ }
         <Dialog
-          open={ isCreateModalOpen }
+          open={ isCreateModalOpen || !!editingProduct }
           onOpenChange={ (open) => {
             if (!isFormLoading) {
-              setIsCreateModalOpen(open);
+              if (open) {
+                setIsCreateModalOpen(true);
+              } else {
+                setIsCreateModalOpen(false);
+                setEditingProduct(null);
+              }
             }
           } }
         >
@@ -157,17 +241,22 @@ const ProductsPage: React.FC = () => {
             } }
           >
             <DialogHeader>
-              <DialogTitle>Add New Product</DialogTitle>
+              <DialogTitle>{ editingProduct ? 'Edit Product' : 'Add New Product' }</DialogTitle>
             </DialogHeader>
             <ProductForm
-              shopId={ shopId || '' }
+              product={ editingProduct ?? undefined }
+              // ✅ FIXED: Use product's shop ID when editing, current shopId when creating new
+              shopId={ editingProduct?.shop?._id || shopId || undefined }
               onSuccess={ () => {
                 setIsCreateModalOpen(false);
+                setEditingProduct(null);
                 setIsFormLoading(false);
+                refetch(); // ✅ Simple refetch
               } }
               onCancel={ () => {
                 if (!isFormLoading) {
                   setIsCreateModalOpen(false);
+                  setEditingProduct(null);
                 }
               } }
               onLoadingChange={ setIsFormLoading }
@@ -190,121 +279,62 @@ const ProductsPage: React.FC = () => {
               </div>
             </div>
             <Badge variant="secondary">
-              { products.length } product{ products.length !== 1 ? 's' : '' }
+              { totalItems } product{ totalItems !== 1 ? 's' : '' }
             </Badge>
           </CardContent>
         </Card>
       ) }
 
-      {/* Filters */ }
-      <div className="flex items-center space-x-4">
-        <Input
-          placeholder="Search products..."
-          value={ searchTerm }
-          onChange={ (e) => setSearchTerm(e.target.value) }
-          className="max-w-sm"
-          disabled={ isFormLoading || isDeleting }
-        />
+      {/* Filters and Stats */ }
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Input
+            placeholder="Search products..."
+            value={ searchTerm }
+            onChange={ handleSearchChange }
+            className="max-w-sm"
+            disabled={ isFormLoading || isDeleting }
+          />
 
-        <Select value={ categoryFilter } onValueChange={ setCategoryFilter } disabled={ isFormLoading || isDeleting }>
-          <SelectTrigger className="max-w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            { categories.map(category => (
-              <SelectItem key={ category } value={ category }>
-                { category }
-              </SelectItem>
-            )) }
-          </SelectContent>
-        </Select>
+          <Select
+            value={ categoryFilter }
+            onValueChange={ handleCategoryChange }
+            disabled={ isFormLoading || isDeleting }
+          >
+            <SelectTrigger className="max-w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              { categories.map(category => (
+                <SelectItem key={ category } value={ category }>
+                  { category }
+                </SelectItem>
+              )) }
+            </SelectContent>
+          </Select>
 
-        <Badge variant="secondary">
-          { filteredProducts.length } product{ filteredProducts.length !== 1 ? 's' : '' }
-        </Badge>
+          { isFetching && (
+            <div className="flex items-center space-x-1">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-xs text-muted-foreground">Loading...</span>
+            </div>
+          ) }
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Badge variant="secondary">
+            { products.length } of { totalItems } products
+          </Badge>
+          <Badge variant="outline">
+            Page { currentPage } of { totalPages }
+          </Badge>
+        </div>
       </div>
 
       {/* Product Grid */ }
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        { filteredProducts.map((product) => (
-          <Card key={ product._id } className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{ product.name }</CardTitle>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline">
-                      { product.category }
-                    </Badge>
-                  </div>
-                  { !shopId && product.shop && (
-                    <div className="flex items-center space-x-1 mt-2">
-                      <Store className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">
-                        { product.shop.name }
-                      </span>
-                    </div>
-                  ) }
-                </div>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" disabled={ isFormLoading || isDeleting }>
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={ () => setEditingProduct(product) }>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit Product
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={ () => setDeleteConfirm(product) }
-                      className="text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Product
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              { product.description && (
-                <CardDescription className="line-clamp-2 mt-2">
-                  { product.description }
-                </CardDescription>
-              ) }
-            </CardHeader>
-
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1">
-                  <IndianRupee className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-semibold">₹{ product.price.toLocaleString() }</span>
-                </div>
-
-                <div className="flex items-center space-x-1">
-                  <Archive className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    { product.stock } in stock
-                  </span>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t">
-                <span className="text-xs text-muted-foreground">
-                  Added { new Date(product.createdAt).toLocaleDateString() }
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        )) }
-      </div>
-
-      {/* Empty State */ }
-      { filteredProducts.length === 0 && !productsLoading && (
-        <Card className="text-center py-12">
+      { products.length === 0 ? (
+        <Card className="text-center py-20">
           <CardContent>
             <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">
@@ -319,66 +349,157 @@ const ProductsPage: React.FC = () => {
               }
             </p>
             { !searchTerm && categoryFilter === 'all' && (
-              <Button onClick={ () => setIsCreateModalOpen(true) } disabled={ isFormLoading || isDeleting }>
+              <Button
+                onClick={ () => setIsCreateModalOpen(true) }
+                disabled={ isFormLoading || isDeleting }
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Your First Product
               </Button>
             ) }
           </CardContent>
         </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            { products.map((product) => (
+              <Card key={ product._id } className="hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg">{ product.name }</CardTitle>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline">
+                          { product.category }
+                        </Badge>
+                      </div>
+                      { !shopId && product.shop && (
+                        <div className="flex items-center space-x-1 mt-2">
+                          <Store className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            { product.shop.name }
+                          </span>
+                        </div>
+                      ) }
+                    </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" disabled={ isFormLoading || isDeleting }>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={ () => setEditingProduct(product) }>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Product
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={ () => setDeleteConfirm(product) }
+                          className="text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Product
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  { product.description && (
+                    <CardDescription className="line-clamp-2 mt-2">
+                      { product.description }
+                    </CardDescription>
+                  ) }
+                </CardHeader>
+
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1">
+                      <IndianRupee className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-semibold">₹{ product.price.toLocaleString() }</span>
+                    </div>
+
+                    <div className="flex items-center space-x-1">
+                      <Archive className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        { product.stock } in stock
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t">
+                    <span className="text-xs text-muted-foreground">
+                      Added { new Date(product.createdAt).toLocaleDateString() }
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )) }
+          </div>
+
+          {/* ✅ Pagination Controls */ }
+          { totalPages > 1 && (
+            <div className="flex items-center justify-center space-x-2 py-8">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={ handlePreviousPage }
+                disabled={ currentPage === 1 || isFetching }
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+
+              <div className="flex items-center space-x-1">
+                { getPageNumbers().map((page, index) => (
+                  <React.Fragment key={ index }>
+                    { page === '...' ? (
+                      <span className="px-2 py-1 text-sm text-muted-foreground">...</span>
+                    ) : (
+                      <Button
+                        variant={ currentPage === page ? 'default' : 'outline' }
+                        size="sm"
+                        onClick={ () => handlePageClick(page as number) }
+                        disabled={ isFetching }
+                        className="min-w-[40px]"
+                      >
+                        { page }
+                      </Button>
+                    ) }
+                  </React.Fragment>
+                )) }
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={ handleNextPage }
+                disabled={ currentPage === totalPages || isFetching }
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          ) }
+        </>
       ) }
 
-      {/* Edit Product Modal */ }
-      <Dialog
-        open={ !!editingProduct }
+      {/* Delete Confirmation Dialog */ }
+      <AlertDialog
+        open={ !!deleteConfirm }
         onOpenChange={ (open) => {
-          if (!isFormLoading && !open) {
-            setEditingProduct(null);
+          if (!isDeleting && !open) {
+            setDeleteConfirm(null);
           }
         } }
       >
-        <DialogContent
-          className="max-w-md"
-          onInteractOutside={ (e) => {
-            if (isFormLoading) {
-              e.preventDefault();
-            }
-          } }
-          onEscapeKeyDown={ (e) => {
-            if (isFormLoading) {
-              e.preventDefault();
-            }
-          } }
-        >
-          <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
-          </DialogHeader>
-          { editingProduct && (
-            <ProductForm
-              product={ editingProduct }
-              shopId={ shopId || editingProduct.shop?._id || '' }
-              onSuccess={ () => {
-                setEditingProduct(null);
-                setIsFormLoading(false);
-              } }
-              onCancel={ () => {
-                if (!isFormLoading) {
-                  setEditingProduct(null);
-                }
-              } }
-              onLoadingChange={ setIsFormLoading }
-            />
-          ) }
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation - FIXED VERSION */ }
-      <AlertDialog
-        open={ !!deleteConfirm }
-      >
         <AlertDialogContent
+          onFocusOutside={ (e) => {
+            if (isDeleting) {
+              e.preventDefault();
+            }
+          } }
           onEscapeKeyDown={ (e) => {
-            // Prevent ESC key when deleting
             if (isDeleting) {
               e.preventDefault();
             }
@@ -397,9 +518,7 @@ const ProductsPage: React.FC = () => {
             </div>
           ) }
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={ isDeleting }>
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={ isDeleting }>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={ () => deleteConfirm && handleDeleteProduct(deleteConfirm._id) }
               disabled={ isDeleting }
