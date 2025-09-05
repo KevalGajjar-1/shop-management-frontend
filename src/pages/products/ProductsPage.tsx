@@ -39,11 +39,13 @@ const ProductsPage: React.FC = () => {
 
   const [ deleteProduct, { isLoading: isDeleting } ] = useDeleteProductMutation();
 
+  // Dialog states
   const [ isCreateModalOpen, setIsCreateModalOpen ] = useState<boolean>(false);
   const [ editingProduct, setEditingProduct ] = useState<Product | null>(null);
   const [ deleteConfirm, setDeleteConfirm ] = useState<Product | null>(null);
   const [ searchTerm, setSearchTerm ] = useState<string>('');
   const [ categoryFilter, setCategoryFilter ] = useState<string>('all');
+  const [ isFormLoading, setIsFormLoading ] = useState<boolean>(false);
 
   const productsResponse = shopId ? shopProductsResponse : allProductsResponse;
   const productsLoading = shopId ? shopProductsLoading : allProductsLoading;
@@ -66,9 +68,10 @@ const ProductsPage: React.FC = () => {
     try {
       await deleteProduct(productId).unwrap();
       toast.success('Product deleted successfully!');
-      setDeleteConfirm(null);
+      setDeleteConfirm(null); // Only close after successful delete
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to delete product');
+      // Don't close dialog on error, let user try again
     }
   };
 
@@ -104,6 +107,7 @@ const ProductsPage: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={ () => navigate({ to: '/shops' }) }
+                  disabled={ isFormLoading || isDeleting }
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to Shops
@@ -124,28 +128,55 @@ const ProductsPage: React.FC = () => {
           ) }
         </div>
 
-        <Dialog open={ isCreateModalOpen } onOpenChange={ setIsCreateModalOpen }>
+        {/* Add Product Dialog */ }
+        <Dialog
+          open={ isCreateModalOpen }
+          onOpenChange={ (open) => {
+            if (!isFormLoading) {
+              setIsCreateModalOpen(open);
+            }
+          } }
+        >
           <DialogTrigger asChild>
-            <Button>
+            <Button disabled={ isFormLoading || isDeleting }>
               <Plus className="mr-2 h-4 w-4" />
               Add Product
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent
+            className="max-w-md"
+            onInteractOutside={ (e) => {
+              if (isFormLoading) {
+                e.preventDefault();
+              }
+            } }
+            onEscapeKeyDown={ (e) => {
+              if (isFormLoading) {
+                e.preventDefault();
+              }
+            } }
+          >
             <DialogHeader>
               <DialogTitle>Add New Product</DialogTitle>
             </DialogHeader>
             <ProductForm
               shopId={ shopId || '' }
-              onSuccess={ () => setIsCreateModalOpen(false) }
-              onCancel={ () => setIsCreateModalOpen(false) }
-              
+              onSuccess={ () => {
+                setIsCreateModalOpen(false);
+                setIsFormLoading(false);
+              } }
+              onCancel={ () => {
+                if (!isFormLoading) {
+                  setIsCreateModalOpen(false);
+                }
+              } }
+              onLoadingChange={ setIsFormLoading }
             />
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Shop Info Card (only when viewing specific shop) */ }
+      {/* Shop Info Card */ }
       { shopId && shop && (
         <Card>
           <CardContent className="flex items-center justify-between p-4">
@@ -172,9 +203,10 @@ const ProductsPage: React.FC = () => {
           value={ searchTerm }
           onChange={ (e) => setSearchTerm(e.target.value) }
           className="max-w-sm"
+          disabled={ isFormLoading || isDeleting }
         />
 
-        <Select value={ categoryFilter } onValueChange={ setCategoryFilter }>
+        <Select value={ categoryFilter } onValueChange={ setCategoryFilter } disabled={ isFormLoading || isDeleting }>
           <SelectTrigger className="max-w-[180px]">
             <SelectValue />
           </SelectTrigger>
@@ -202,12 +234,10 @@ const ProductsPage: React.FC = () => {
                 <div className="flex-1">
                   <CardTitle className="text-lg">{ product.name }</CardTitle>
                   <div className="flex items-center gap-2 mt-1">
-                    Category:
                     <Badge variant="outline">
                       { product.category }
                     </Badge>
                   </div>
-                  {/* Show shop name when viewing all products */ }
                   { !shopId && product.shop && (
                     <div className="flex items-center space-x-1 mt-2">
                       <Store className="h-3 w-3 text-muted-foreground" />
@@ -220,7 +250,7 @@ const ProductsPage: React.FC = () => {
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" disabled={ isFormLoading || isDeleting }>
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -251,7 +281,7 @@ const ProductsPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1">
                   <IndianRupee className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-semibold">{ product.price.toLocaleString() }</span>
+                  <span className="font-semibold">₹{ product.price.toLocaleString() }</span>
                 </div>
 
                 <div className="flex items-center space-x-1">
@@ -289,7 +319,7 @@ const ProductsPage: React.FC = () => {
               }
             </p>
             { !searchTerm && categoryFilter === 'all' && (
-              <Button onClick={ () => setIsCreateModalOpen(true) }>
+              <Button onClick={ () => setIsCreateModalOpen(true) } disabled={ isFormLoading || isDeleting }>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Your First Product
               </Button>
@@ -299,8 +329,27 @@ const ProductsPage: React.FC = () => {
       ) }
 
       {/* Edit Product Modal */ }
-      <Dialog open={ !!editingProduct } onOpenChange={ () => setEditingProduct(null) }>
-        <DialogContent className="max-w-md">
+      <Dialog
+        open={ !!editingProduct }
+        onOpenChange={ (open) => {
+          if (!isFormLoading && !open) {
+            setEditingProduct(null);
+          }
+        } }
+      >
+        <DialogContent
+          className="max-w-md"
+          onInteractOutside={ (e) => {
+            if (isFormLoading) {
+              e.preventDefault();
+            }
+          } }
+          onEscapeKeyDown={ (e) => {
+            if (isFormLoading) {
+              e.preventDefault();
+            }
+          } }
+        >
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
           </DialogHeader>
@@ -308,24 +357,49 @@ const ProductsPage: React.FC = () => {
             <ProductForm
               product={ editingProduct }
               shopId={ shopId || editingProduct.shop?._id || '' }
-              onSuccess={ () => setEditingProduct(null) }
-              onCancel={ () => setEditingProduct(null) }
+              onSuccess={ () => {
+                setEditingProduct(null);
+                setIsFormLoading(false);
+              } }
+              onCancel={ () => {
+                if (!isFormLoading) {
+                  setEditingProduct(null);
+                }
+              } }
+              onLoadingChange={ setIsFormLoading }
             />
           ) }
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */ }
-      <AlertDialog open={ !!deleteConfirm } onOpenChange={ () => setDeleteConfirm(null) }>
-        <AlertDialogContent>
+      {/* Delete Confirmation - FIXED VERSION */ }
+      <AlertDialog
+        open={ !!deleteConfirm }
+      >
+        <AlertDialogContent
+          onEscapeKeyDown={ (e) => {
+            // Prevent ESC key when deleting
+            if (isDeleting) {
+              e.preventDefault();
+            }
+          } }
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Product</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{ deleteConfirm?.name }"? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          { isDeleting && (
+            <div className="flex items-center space-x-2 my-4 p-3 bg-red-50 rounded-lg">
+              <Loader2 className="h-4 w-4 animate-spin text-red-600" />
+              <span className="text-sm text-red-700">Deleting product...</span>
+            </div>
+          ) }
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={ isDeleting }>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={ () => deleteConfirm && handleDeleteProduct(deleteConfirm._id) }
               disabled={ isDeleting }

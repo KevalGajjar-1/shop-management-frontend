@@ -16,13 +16,15 @@ import { Shop } from '@/interfaces';
 const ShopsPage: React.FC = () => {
   const navigate = useNavigate();
 
-  const { data: response, isLoading, error } = useGetShopsQuery({});
+  const { data: response, isLoading, error } = useGetShopsQuery({ search: '' });
   const [ deleteShop, { isLoading: isDeleting } ] = useDeleteShopMutation();
 
+  // Dialog states
   const [ isCreateModalOpen, setIsCreateModalOpen ] = useState(false);
   const [ editingShop, setEditingShop ] = useState<Shop | null>(null);
   const [ deleteConfirm, setDeleteConfirm ] = useState<Shop | null>(null);
   const [ searchTerm, setSearchTerm ] = useState('');
+  const [ isFormLoading, setIsFormLoading ] = useState(false);
 
   const shops: Shop[] = response?.data ?? [];
 
@@ -45,133 +47,242 @@ const ShopsPage: React.FC = () => {
     navigate({ to: '/products', search: { shopId } });
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading shops...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-destructive">Failed to load shops</p>
+        <Button onClick={ () => window.location.reload() } className="mt-4">
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      { isLoading && (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Loading shops...</span>
+      {/* Header */ }
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Shops</h1>
+          <p className="text-muted-foreground">Manage your shops</p>
         </div>
-      ) }
-      { error && (
-        <div className="text-center py-8">
-          <p className="text-destructive">Failed to load shops</p>
-          <Button onClick={ () => window.location.reload() } className="mt-4">Retry</Button>
-        </div>
-      ) }
-      { !isLoading && !error && (
-        <>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Shops</h1>
-              <p className="text-muted-foreground">Manage your shop</p>
-            </div>
-            <Dialog open={ isCreateModalOpen } onOpenChange={ setIsCreateModalOpen }>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2" />
-                  Add Shop
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{ editingShop ? 'Edit Shop' : 'Create New Shop' }</DialogTitle>
-                </DialogHeader>
-                <ShopForm
-                  shop={ editingShop ?? undefined }
-                  onSuccess={ () => { setIsCreateModalOpen(false); setEditingShop(null); } }
-                  onCancel={ () => { setIsCreateModalOpen(false); setEditingShop(null); } }
-                />
-              </DialogContent>
-            </Dialog>
-          </div>
 
-          <div className="flex items-center space-x-2">
-            <Input
-              placeholder="Search shops..."
-              value={ searchTerm }
-              onChange={ e => setSearchTerm(e.target.value) }
-              className="max-w-sm"
+        {/* Create/Edit Shop Dialog */ }
+        <Dialog
+          modal
+          open={ isCreateModalOpen || !!editingShop }
+          onOpenChange={ (open) => {
+            if (!isFormLoading) {
+              if (!open) {
+                setIsCreateModalOpen(false);
+                setEditingShop(null);
+              }
+            }
+          } }
+        >
+          <DialogTrigger asChild>
+            <Button disabled={ isFormLoading || isDeleting }>
+              <Plus className="mr-2" />
+              Add Shop
+            </Button>
+          </DialogTrigger>
+          <DialogContent
+            onInteractOutside={ (e) => {
+              if (isFormLoading) {
+                e.preventDefault();
+              }
+            } }
+            onEscapeKeyDown={ (e) => {
+              if (isFormLoading) {
+                e.preventDefault();
+              }
+            } }
+          >
+            <DialogHeader>
+              <DialogTitle>{ editingShop ? 'Edit Shop' : 'Create New Shop' }</DialogTitle>
+            </DialogHeader>
+            { isFormLoading && (
+              <div className="flex items-center space-x-2 mb-4 p-3 bg-blue-50 rounded-lg">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                <span className="text-sm text-blue-700">
+                  { editingShop ? 'Updating shop...' : 'Creating shop...' }
+                </span>
+              </div>
+            ) }
+            <ShopForm
+              shop={ editingShop ?? undefined }
+              onSuccess={ () => {
+                setIsCreateModalOpen(false);
+                setEditingShop(null);
+                setIsFormLoading(false);
+              } }
+              onCancel={ () => {
+                if (!isFormLoading) {
+                  setIsCreateModalOpen(false);
+                  setEditingShop(null);
+                }
+              } }
+              onLoadingChange={ (loading) => setIsFormLoading(loading) }
             />
-            <Badge>{ filteredShops.length } { filteredShops.length === 1 ? 'shop' : 'shops' }</Badge>
-          </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-          { filteredShops.length === 0 ? (
-            <div className="text-center py-20">
-              No shops found.
-              <br />
-              <Button onClick={ () => setIsCreateModalOpen(true) } className="mt-4">Add your first shop</Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              { filteredShops.map(shop => (
-                <Card key={ shop._id } className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center space-x-2">
-                        <Store className="text-primary" />
-                        <CardTitle>{ shop.name }</CardTitle>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical />{/* use MoreVert or MoreVertical from lucide-react */ }
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={ () => handleViewProducts(shop._id) }>
-                            <Eye className="mr-2" /> View Products
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={ () => { setEditingShop(shop); setIsCreateModalOpen(true); } }>
-                            <Edit className="mr-2" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={ () => setDeleteConfirm(shop) }>
-                            <Trash2 className="mr-2" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    { shop.description && <CardDescription>{ shop.description }</CardDescription> }
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center space-x-2">
-                      <MapPin /> <span>{ shop.address }</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Phone /> <span>{ shop.phone }</span>
-                    </div>
-                    <div className="flex justify-between pt-2 text-sm text-muted-foreground">
-                      <span>Created on { new Date(shop.createdAt).toLocaleDateString() }</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )) }
+      {/* Search */ }
+      <div className="flex items-center space-x-2">
+        <Input
+          placeholder="Search shops..."
+          value={ searchTerm }
+          onChange={ e => setSearchTerm(e.target.value) }
+          className="max-w-sm"
+          disabled={ isFormLoading || isDeleting }
+        />
+        <Badge>{ filteredShops.length } { filteredShops.length === 1 ? 'shop' : 'shops' }</Badge>
+      </div>
+
+      {/* Shops Grid */ }
+      { filteredShops.length === 0 ? (
+        <Card className="text-center py-20">
+          <CardContent>
+            <Store className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No shops found</h3>
+            <p className="text-muted-foreground mb-4">
+              { searchTerm ? 'Try adjusting your search' : 'Get started by creating your first shop' }
+            </p>
+            <Button
+              onClick={ () => setIsCreateModalOpen(true) }
+              disabled={ isFormLoading || isDeleting }
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Your First Shop
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          { filteredShops.map(shop => (
+            <Card key={ shop._id } className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-2">
+                    <Store className="text-primary h-5 w-5" />
+                    <CardTitle className="text-lg">{ shop.name }</CardTitle>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" disabled={ isFormLoading || isDeleting }>
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={ () => handleViewProducts(shop._id) }>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Products
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={ () => {
+                        setEditingShop(shop);
+                        setIsCreateModalOpen(true);
+                      } }>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={ () => setDeleteConfirm(shop) }>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                { shop.description && <CardDescription>{ shop.description }</CardDescription> }
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center space-x-2 mb-2 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
+                  <span>{ shop.address }</span>
+                </div>
+                <div className="flex items-center space-x-2 mb-3 text-sm text-muted-foreground">
+                  <Phone className="h-4 w-4" />
+                  <span>{ shop.phone }</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="text-xs text-muted-foreground">
+                    Created { new Date(shop.createdAt).toLocaleDateString() }
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={ () => handleViewProducts(shop._id) }
+                    disabled={ isFormLoading || isDeleting }
+                  >
+                    View Products
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )) }
+        </div>
+      ) }
+
+      {/* Delete Confirmation Dialog */ }
+      <AlertDialog
+        open={ !!deleteConfirm }
+        onOpenChange={ (open) => {
+          if (!isDeleting && !open) {
+            setDeleteConfirm(null);
+          }
+        } }
+      >
+        <AlertDialogContent
+          onFocusOutside={ (e) => {
+            if (isDeleting) {
+              e.preventDefault();
+            }
+          } }
+          onEscapeKeyDown={ (e) => {
+            if (isDeleting) {
+              e.preventDefault();
+            }
+          } }
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Shop</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{ deleteConfirm?.name }"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          { isDeleting && (
+            <div className="flex items-center space-x-2 my-4 p-3 bg-red-50 rounded-lg">
+              <Loader2 className="h-4 w-4 animate-spin text-red-600" />
+              <span className="text-sm text-red-700">Deleting shop...</span>
             </div>
           ) }
-
-          {/* Delete Confirmation Dialog */ }
-          <AlertDialog open={ !!deleteConfirm } onOpenChange={ () => setDeleteConfirm(null) }>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Shop</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete "{ deleteConfirm?.name }"? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={ () => setDeleteConfirm(null) }>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={ () => deleteConfirm && handleDeleteShop(deleteConfirm._id) }
-                  disabled={ isDeleting }
-                  className="bg-destructive text-destructive-foreground"
-                >
-                  { isDeleting ? <><Loader2 className="mr-2 w-4 h-4 animate-spin" />Deleting...</> : 'Delete' }
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
-      ) }
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={ isDeleting }>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={ () => deleteConfirm && handleDeleteShop(deleteConfirm._id) }
+              disabled={ isDeleting }
+              className="bg-destructive text-destructive-foreground"
+            >
+              { isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 w-4 h-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              ) }
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

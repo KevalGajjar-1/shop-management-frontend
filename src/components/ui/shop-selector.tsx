@@ -15,9 +15,10 @@ interface ShopSelectorProps {
   onSelect: (shopId: string) => void;
   loading: boolean;
   onSearch: (search: string) => void;
+  onCancel: () => void;
 }
 
-const ShopSelector: React.FC<ShopSelectorProps> = ({ shops, loading, onSelect, onSearch }) => {
+const ShopSelector: React.FC<ShopSelectorProps> = ({ shops, loading, onSelect, onSearch, onCancel }) => {
   const [ searchTerm, setSearchTerm ] = useState('');
   const [ debouncedSearch ] = useDebounce(searchTerm, 300);
 
@@ -59,7 +60,7 @@ const ShopSelector: React.FC<ShopSelectorProps> = ({ shops, loading, onSelect, o
         </ul>
       ) }
       <div className="mt-4 flex justify-end">
-        <Button variant="outline" onClick={ () => onSelect('') }>
+        <Button variant="outline" onClick={ onCancel }>
           Cancel
         </Button>
       </div>

@@ -37,7 +37,7 @@ const RootLayout: React.FC = () => {
 
         {/* Main content area */}
         <div className="flex flex-1 flex-col gap-4 pt-0">
-          <div className="min-h-[calc(100vh-theme(spacing.16))] flex-1 rounded-xl bg-muted/50 p-4">
+          <div className="min-h-[calc(100vh-theme(spacing.18))] flex-1 rounded-xl bg-muted/50 p-4">
             <Outlet />
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,14 +23,21 @@ interface ShopFormProps {
   shop?: any;
   onSuccess: () => void;
   onCancel: () => void;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
-const ShopForm: React.FC<ShopFormProps> = ({ shop, onSuccess, onCancel }) => {
+const ShopForm: React.FC<ShopFormProps> = ({ shop, onSuccess, onCancel, onLoadingChange }) => {
   const [createShop, { isLoading: isCreating }] = useCreateShopMutation();
   const [updateShop, { isLoading: isUpdating }] = useUpdateShopMutation();
   
   const isEditing = !!shop;
   const isLoading = isCreating || isUpdating;
+
+  useEffect(() => {
+    if (onLoadingChange) {
+      onLoadingChange(isLoading);
+    }
+  }, [ isLoading, onLoadingChange ]);
 
   const {
     register,
